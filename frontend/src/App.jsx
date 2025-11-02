@@ -1,31 +1,61 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useActiveAccount } from "thirdweb/react";
 import NetworkToggle from './components/NetworkToggle';
-import ConnectWallet from './components/ConnectWallet';
 import ArbitrageFinder from './components/ArbitrageFinder';
 import Profits from './components/Profits';
 import TradeAmountInput from './components/TradeAmountInput';
 import TransactionStatus from './components/TransactionStatus';
 import TradeHistory from './components/TradeHistory';
+import Welcome from './components/Welcome';
 import { ethers } from 'ethers';
 
-const getRpc = (net) => {
-  if (net === 'mainnet') return import.meta.env.VITE_BASE_MAINNET_RPC;
-  if (net === 'sepolia') return import.meta.env.VITE_BASE_SEPOLIA_RPC;
-  if (net === 'polygon') return 'https://polygon-rpc.com';
-  if (net === 'arbitrum') return 'https://arb1.arbitrum.io/rpc';
-  if (net === 'optimism') return 'https://mainnet.optimism.io';
-  if (net === 'avalanche') return 'https://api.avax.network/ext/bc/C/rpc';
-  return import.meta.env.VITE_BASE_SEPOLIA_RPC;
-};
+// This is a custom provider that sends RPC requests to our Netlify function proxy.
+class ProxiedRpcProvider extends ethers.JsonRpcProvider {
+  constructor(network) {
+    // The URL here is your proxy endpoint.
+    super('/netlify/functions/rpc-proxy', undefined, {
+        staticNetwork: true
+    });
+    this.proxyNetwork = network;
+  }
+
+  async _send(payload) {
+    // This method intercepts the JSON-RPC payload and wraps it for our proxy.
+    const proxyPayload = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        network: this.proxyNetwork, // Pass the target network to the proxy
+        ...payload, // Spread the original ethers.js payload
+      }),
+    };
+
+    const response = await fetch(this.connection.url, proxyPayload);
+    const data = await response.json();
+
+    if (!response.ok) {
+        // Create a structured error
+        const error = new Error(data.error || 'Proxy request failed');
+        error.response = response;
+        error.data = data;
+        throw error;
+    }
+
+    // ethers expects an array of results for batch requests, even if we sent one
+    return [data];
+  }
+}
+
 
 const getContractAddr = (net) => {
-  if (net === 'mainnet') return import.meta.env.VITE_BASE_MAINNET_CONTRACT;
-  if (net === 'sepolia') return import.meta.env.VITE_BASE_SEPOLIA_CONTRACT;
+  // Since the contract is not deployed, we will return null
   return null;
 };
 
 const getWethAddr = (net) => {
-    if (net === 'mainnet' || net === 'sepolia') return '0x4200000000000000000000000000000000000006'; // WETH on Base
+    if (net === 'Base Mainnet' || net === 'Base Sepolia') return '0x4200000000000000000000000000000000000006'; // WETH on Base
     return null;
 }
 
@@ -44,8 +74,10 @@ const arbitrageBalancerAbi = [
 ];
 
 export default function App(){
-  const [network, setNetwork] = useState(localStorage.getItem('network') || import.meta.env.VITE_DEFAULT_NETWORK || 'sepolia');
-  const [provider, setProvider] = useState(null);
+  const account = useActiveAccount();
+  const [network, setNetwork] = useState(localStorage.getItem('network') || 'Base Sepolia');
+  // Separate provider for read-only operations via our proxy
+  const [readProvider, setReadProvider] = useState(() => new ProxiedRpcProvider(network));
   const [contractAddr, setContractAddr] = useState(getContractAddr(network));
   const [tokenAddress, setTokenAddress] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
@@ -60,22 +92,26 @@ export default function App(){
   const [trades, setTrades] = useState([]);
   const [signer, setSigner] = useState(null);
 
+  // Effect for handling network changes
   useEffect(()=> {
-    const rpc = getRpc(network);
-    if (rpc) {
-        const web3Provider = new ethers.BrowserProvider(window.ethereum);
-        setProvider(web3Provider);
-        web3Provider.getSigner().then(setSigner);
-    }
+    // Create a new read-only provider when the network changes
+    setReadProvider(new ProxiedRpcProvider(network));
     setContractAddr(getContractAddr(network));
     localStorage.setItem('network', network);
+
+    // Also update the signer from the browser wallet
+    if (window.ethereum) {
+        const web3Provider = new ethers.BrowserProvider(window.ethereum);
+        web3Provider.getSigner().then(setSigner);
+    }
   }, [network]);
 
+  // Effect for fetching token info using the read-only provider
   useEffect(() => {
     const fetchTokenInfo = async () => {
-        if (ethers.isAddress(tokenAddress) && provider) {
+        if (ethers.isAddress(tokenAddress) && readProvider) {
             try {
-                const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, provider);
+                const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, readProvider);
                 const symbol = await tokenContract.symbol();
                 const decimals = await tokenContract.decimals();
                 setTokenSymbol(symbol);
@@ -89,7 +125,7 @@ export default function App(){
     };
 
     fetchTokenInfo();
-  }, [tokenAddress, provider]);
+  }, [tokenAddress, readProvider]);
 
   const handleNetworkChange = (newNetwork) => {
     setNetwork(newNetwork);
@@ -97,7 +133,7 @@ export default function App(){
   
   const handlePriceCheck = useCallback(async () => {
     if (!contractAddr || !ethers.isAddress(tokenAddress)) {
-      alert('Please enter a valid token address.');
+      alert('The arbitrage contract is not deployed yet. This feature is disabled.');
       return;
     }
 
@@ -107,7 +143,7 @@ export default function App(){
         return;
     }
 
-    const arbitrageContract = new ethers.Contract(contractAddr, ['function getDexRouter(string) view returns (address)'], provider);
+    const arbitrageContract = new ethers.Contract(contractAddr, ['function getDexRouter(string) view returns (address)'], readProvider);
     const amountIn = ethers.parseUnits('1', tokenDecimals);
     const path = [tokenAddress, wethAddr];
 
@@ -118,7 +154,7 @@ export default function App(){
         ]);
 
         const prices = await Promise.all(routers.map(routerAddress => {
-            const routerContract = new ethers.Contract(routerAddress, uniswapV2RouterAbi, provider);
+            const routerContract = new ethers.Contract(routerAddress, uniswapV2RouterAbi, readProvider);
             return routerContract.getAmountsOut(amountIn, path);
         }));
 
@@ -131,67 +167,74 @@ export default function App(){
 
     } catch (error) {
         console.error("Error during price check:", error);
-        alert("Failed to fetch prices from the DEX routers.");
+        alert("Failed to fetch prices from the DEX routers. Check console for details.");
     }
-  }, [contractAddr, tokenAddress, tokenDecimals, inputDex, outputDex, provider, network]);
+  }, [contractAddr, tokenAddress, tokenDecimals, inputDex, outputDex, readProvider, network]);
 
   const handleArbitrage = async () => {
     if (!contractAddr || !signer || !tradeAmount || !profit) {
-        alert("Please connect wallet, enter a trade amount, and check prices.");
+        alert("The arbitrage contract is not deployed yet. This feature is disabled.");
         return;
     }
 
     setTransactionStatus('pending');
 
     try {
+        // Write operations require the signer
         const arbitrageContract = new ethers.Contract(contractAddr, arbitrageBalancerAbi, signer);
         const wethAddr = getWethAddr(network);
         const amountIn = ethers.parseUnits(tradeAmount, tokenDecimals);
 
-        const arbitrageContractForRouters = new ethers.Contract(contractAddr, ['function getDexRouter(string) view returns (address)'], provider);
+        // Read operations can still use the readProvider
+        const arbitrageContractForRouters = new ethers.Contract(contractAddr, ['function getDexRouter(string) view returns (address)'], readProvider);
         const router1 = await arbitrageContractForRouters.getDexRouter(inputDex);
         const router2 = await arbitrageContractForRouters.getDexRouter(outputDex);
         
         const deadline = Math.floor(Date.now() / 1000) + 60 * 5; // 5 minutes from now
-        const slippage = 0.01; // 1%
-        const minAmountOut1 = ethers.parseUnits((parseFloat(tradeAmount) * (1 - slippage)).toString(), tokenDecimals);
-
+        
         const userData = ethers.AbiCoder.defaultAbiCoder().encode(
-            ['address', 'address', 'address', 'address', 'uint256', 'uint256'],
-            [router1, router2, tokenAddress, wethAddr, minAmountOut1, deadline]
+            ['address', 'address', 'address', 'address', 'uint256'],
+            [router1, router2, tokenAddress, wethAddr, deadline]
         );
 
         const tx = await arbitrageContract.startFlashloan(tokenAddress, amountIn, userData);
         const receipt = await tx.wait();
 
-        const event = receipt.events.find(e => e.event === 'FlashLoanExecuted');
-        const netProfit = event.args.netProfit;
+        const executedEvent = receipt.logs.map(log => arbitrageContract.interface.parseLog(log)).find(event => event.name === 'FlashLoanExecuted');
 
-        const newTrade = {
-            inputToken: tokenSymbol,
-            outputToken: tokenSymbol,
-            inputAmount: tradeAmount,
-            outputAmount: ethers.formatUnits(amountIn + netProfit, tokenDecimals),
-            profit: ethers.formatUnits(netProfit, tokenDecimals),
-            status: 'success'
-        };
-        setTrades([...trades, newTrade]);
-        setTransactionStatus('success');
+        if(executedEvent){
+            const netProfit = executedEvent.args.netProfit;
+            const newTrade = {
+                inputToken: tokenSymbol,
+                outputToken: tokenSymbol,
+                inputAmount: tradeAmount,
+                outputAmount: ethers.formatUnits(amountIn + netProfit, tokenDecimals),
+                profit: ethers.formatUnits(netProfit, tokenDecimals),
+                status: 'success'
+            };
+            setTrades([...trades, newTrade]);
+            setTransactionStatus('success');
+        } else {
+            throw new Error("FlashLoanExecuted event not found.");
+        }
     } catch (error) {
         console.error("Error during arbitrage execution:", error);
         setTransactionStatus('failed');
     }
   };
 
+  if (!account) {
+    return <Welcome network={network} />;
+  }
+
   return (
-    <div style={{padding: '20px', fontFamily: 'Arial, sans-serif', backgroundColor: '#00008b', color: 'white', minHeight: '100vh'}}>
-      <header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-        <h1 style={{margin: 0}}>Arbitrage App</h1>
+    <div className="app">
+      <header className="app-header">
+        <h1>Arbitrage App</h1>
         <NetworkToggle network={network} onNetworkChange={handleNetworkChange} />
       </header>
-      <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column'}}>
-          <ConnectWallet />
-          <div style={{marginTop: '20px', width: '100%', maxWidth: '500px'}}>
+      <div className="main-content">
+          <div className="finder-container">
             <ArbitrageFinder 
                 tokenAddress={tokenAddress}
                 setTokenAddress={setTokenAddress}
@@ -206,29 +249,28 @@ export default function App(){
           {(inputPrice !== null && outputPrice !== null && profit !== null) &&
             <Profits inputPrice={inputPrice} outputPrice={outputPrice} profit={profit} />
           }
-          <div style={{marginTop: 'auto', paddingTop: '20px', display: 'flex', gap: '10px'}}>
-            <button onClick={handlePriceCheck} style={{padding: '10px 20px', background: 'orange', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '16px'}}>
+          <div className="actions">
+            <button onClick={handlePriceCheck} className="btn btn-secondary">
               Check Price
             </button>
-            <button onClick={handleArbitrage} disabled={!tradeAmount || !profit} style={{padding: '10px 20px', background: 'green', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '16px'}}>
+            <button onClick={handleArbitrage} disabled={!tradeAmount || !profit} className="btn btn-primary">
               Execute Trade
             </button>
           </div>
           <TransactionStatus status={transactionStatus} />
           <TradeHistory trades={trades} />
       </div>
-      <div style={{position: 'fixed', bottom: 10, right: 10}}>
+      <div className="debug-info">
           <p>Connected network: <strong>{network}</strong></p>
-          <p>RPC: {getRpc(network)}</p>
           <p>Contract: {contractAddr || 'N/A'}</p>
           <button onClick={async ()=> {
               try{
-                const block = await provider.getBlockNumber();
+                const block = await readProvider.getBlockNumber();
                 alert('RPC OK - block: '+block);
               }catch(e){
                 alert('RPC error: '+e.message);
               }
-            }} style={{padding: '8px', background: 'orange', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer'}}>
+            }} className="btn btn-secondary">
                 Test RPC
           </button>
       </div>

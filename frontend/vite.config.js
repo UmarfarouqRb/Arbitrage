@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       rollupOptions: {
-        external: ["ethers"]
+        external: []
       },
       outDir: "dist",
       sourcemap: isDev
