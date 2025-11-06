@@ -1,6 +1,5 @@
-
-import ArbitrageBalancer from './ArbitrageBalancer.json';
-import MockERC20 from './MockERC20.json';
+import ArbitrageBalancer from '../../contracts/artifacts/contracts/ArbitrageBalancer.sol/ArbitrageBalancer.json';
+import MockERC20 from '../../contracts/artifacts/contracts/MockERC20.sol/MockERC20.json';
 
 export const ArbitrageBalancerAddress = import.meta.env.VITE_ARBITRAGE_BALANCER_ADDRESS;
 export const ArbitrageBalancerABI = ArbitrageBalancer.abi;

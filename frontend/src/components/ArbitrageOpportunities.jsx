@@ -1,15 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
 
-const ArbitrageOpportunities = () => {
+const ArbitrageOpportunities = ({ tokenAddress }) => {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
   const fetchAndRankOpportunities = async () => {
+    if (!tokenAddress) {
+      setOpportunities([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`https://api.dexscreener.com/latest/dex/search?q=WETH`);
+      const response = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${tokenAddress}`);
+      if (!response.ok) {
+        throw new Error('API Error: Could not fetch arbitrage opportunities.');
+      }
       const data = await response.json();
 
       if (data.pairs) {
@@ -52,9 +62,13 @@ const ArbitrageOpportunities = () => {
           .sort((a, b) => b.percentageDiff - a.percentageDiff);
 
         setOpportunities(rankedOpportunities.slice(0, 10));
+        if (rankedOpportunities.length === 0) {
+          setError('No significant arbitrage opportunities found for this token.');
+        }
       }
     } catch (error) {
       console.error('Error fetching and ranking arbitrage opportunities:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -79,7 +93,7 @@ const ArbitrageOpportunities = () => {
       }
       clearInterval(intervalId);
     };
-  }, []);
+  }, [tokenAddress]);
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -151,6 +165,11 @@ const ArbitrageOpportunities = () => {
           textAlign: 'center', 
           marginTop: 'auto' 
       },
+      error: {
+          color: 'red',
+          textAlign: 'center',
+          padding: '20px'
+      }
   };
 
   return (
@@ -158,6 +177,8 @@ const ArbitrageOpportunities = () => {
       <h2 style={styles.header}>Top 10 Arbitrage Opportunities</h2>
       {loading ? (
         <p style={{textAlign: 'center'}}>Finding the best opportunities...</p>
+      ) : error ? (
+        <p style={styles.error}>{error}</p>
       ) : (
         <div style={styles.grid}>
           {opportunities.map((opp, index) => (
@@ -176,7 +197,6 @@ const ArbitrageOpportunities = () => {
               </div>
             </div>
           ))}
-          {opportunities.length === 0 && !loading && <p style={{textAlign: 'center'}}>No significant arbitrage opportunities found.</p>}
         </div>
       )}
     </div>

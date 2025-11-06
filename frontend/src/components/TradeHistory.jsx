@@ -1,21 +1,10 @@
 import React from 'react';
 
-const TradeHistory = ({ trades }) => {
-  if (!trades || trades.length === 0) {
-    return null;
-  }
-
+const TradeHistory = () => {
   return (
-    <div style={{width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px'}}>
-        <h3>Trade History</h3>
-        {trades.map((trade, index) => (
-            <div key={index} style={{padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%', boxSizing: 'border-box'}}>
-                <p>Input: {trade.inputAmount} {trade.inputToken}</p>
-                <p>Output: {trade.outputAmount} {trade.outputToken}</p>
-                <p>Profit: {trade.profit}</p>
-                <p>Status: {trade.status}</p>
-            </div>
-        ))}
+    <div style={{ padding: '20px', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+      <h2 style={{ color: '#333', textAlign: 'center' }}>Trade History</h2>
+      <p style={{ textAlign: 'center', color: '#666' }}>Trade history will be displayed here.</p>
     </div>
   );
 };

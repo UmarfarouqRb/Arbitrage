@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const ArbitrageFinder = ({ tokenAddress, setTokenAddress, inputDex, setInputDex, outputDex, setOutputDex, onCheckTrade, tokenSymbol }) => {
+const ArbitrageFinder = ({ tokenAddress, setTokenAddress, inputDex, setInputDex, outputDex, setOutputDex, onCheckTrade, tokenSymbol, disabled }) => {
   const [dexOptions, setDexOptions] = useState([]);
   const [loadingDexs, setLoadingDexs] = useState(false);
 
@@ -51,6 +51,7 @@ const ArbitrageFinder = ({ tokenAddress, setTokenAddress, inputDex, setInputDex,
             value={tokenAddress}
             onChange={(e) => setTokenAddress(e.target.value)}
             style={styles.tokenInput}
+            disabled={disabled}
             />
             {tokenSymbol && <span style={styles.tokenSymbol}>{tokenSymbol}</span>}
         </div>
@@ -58,22 +59,22 @@ const ArbitrageFinder = ({ tokenAddress, setTokenAddress, inputDex, setInputDex,
             <div style={styles.dexSelectors}>
                 <div style={styles.selectWrapper}>
                     <label htmlFor="input-dex-finder">Input DEX</label>
-                    <select id="input-dex-finder" value={inputDex} onChange={e => setInputDex(e.target.value)} style={styles.select}>
+                    <select id="input-dex-finder" value={inputDex} onChange={e => setInputDex(e.target.value)} style={styles.select} disabled={disabled}>
                         <option value="" disabled>Select Input DEX</option>
                         {dexOptions.map(dex => <option key={`in-${dex}`} value={dex}>{dex}</option>)}
                     </select>
                 </div>
                 <div style={styles.selectWrapper}>
                     <label htmlFor="output-dex-finder">Output DEX</label>
-                    <select id="output-dex-finder" value={outputDex} onChange={e => setOutputDex(e.target.value)} style={styles.select}>
+                    <select id="output-dex-finder" value={outputDex} onChange={e => setOutputDex(e.target.value)} style={styles.select} disabled={disabled}>
                         <option value="" disabled>Select Output DEX</option>
                         {dexOptions.map(dex => <option key={`out-${dex}`} value={dex}>{dex}</option>)}
                     </select>
                 </div>
             </div>
         )}
-         <button onClick={onCheckTrade} style={styles.button} disabled={!inputDex || !outputDex || loadingDexs}>
-            Check Trade
+         <button onClick={onCheckTrade} style={styles.button} disabled={!inputDex || !outputDex || loadingDexs || disabled}>
+            {disabled ? 'Loading...' : 'Check Trade'}
         </button>
     </div>
   );
