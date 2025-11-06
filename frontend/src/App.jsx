@@ -8,6 +8,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const ArbitrageFinder = lazy(() => import('./components/ArbitrageFinder'));
 const ArbitrageOpportunities = lazy(() => import('./components/ArbitrageOpportunities'));
 const TradeHistory = lazy(() => import('./components/TradeHistory'));
+const ContractControls = lazy(() => import('./components/ContractControls'));
 
 export default function App() {
   const account = useActiveAccount();
@@ -20,6 +21,7 @@ export default function App() {
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [contractAddress, setContractAddress] = useState('YOUR_CONTRACT_ADDRESS'); // Replace with your contract address
 
   const navLinkStyle = ({ isActive }) => ({
     display: 'block',
@@ -87,6 +89,7 @@ export default function App() {
               <Route path="/dashboard" element={
                 <ErrorBoundary>
                   <Dashboard />
+                  <ContractControls contractAddress={contractAddress} />
                 </ErrorBoundary>
               } />
               <Route path="/finder" element={

@@ -3,7 +3,9 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./interfaces/IUniswapV2Router.sol";
+// Directly import the concrete contract
 import "./UniswapV2TwapOracle.sol";
 
 interface IVault {
@@ -15,10 +17,11 @@ interface IVault {
     ) external;
 }
 
-contract ArbitrageBalancer is ReentrancyGuard {
+contract ArbitrageBalancer is ReentrancyGuard, Pausable {
     address public immutable owner;
     IVault public immutable vault;
-    IUniswapV2TwapOracle public immutable twapOracle;
+    // Use the concrete contract type
+    UniswapV2TwapOracle public immutable twapOracle;
 
     event FlashLoanExecuted(address indexed token, uint256 loanAmount, int256 netProfit);
     event ProfitWithdrawal(address indexed token, uint256 amount);
@@ -31,18 +34,36 @@ contract ArbitrageBalancer is ReentrancyGuard {
     constructor(address _vault, address _twapOracle) {
         owner = msg.sender;
         vault = IVault(_vault);
-        twapOracle = IUniswapV2TwapOracle(_twapOracle);
+        // Cast to the concrete contract type
+        twapOracle = UniswapV2TwapOracle(_twapOracle);
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
     function startFlashloan(
         address token,
         uint256 amount,
         bytes calldata userData
-    ) external onlyOwner {
+    ) external onlyOwner whenNotPaused {
         address[] memory tokens = new address[](1);
         tokens[0] = token;
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
+
+        // Before executing the flash loan, we must update the oracle
+        // to ensure we have a recent price observation.
+        (address inputToken, address middleToken,,,,,) = abi.decode(
+            userData,
+            (address, address, address[], address[][], uint256, uint256, uint256)
+        );
+        twapOracle.update(inputToken, middleToken);
+
         vault.flashLoan(address(this), tokens, amounts, userData);
     }
 
@@ -55,6 +76,7 @@ contract ArbitrageBalancer is ReentrancyGuard {
         require(msg.sender == address(vault), "Only Balancer Vault can call this function");
         require(tokens.length == 1, "This contract only handles single-token flash loans");
 
+        // Decode the updated userData, without twapDuration
         (
             address inputToken,
             address middleToken,
@@ -62,11 +84,10 @@ contract ArbitrageBalancer is ReentrancyGuard {
             address[][] memory paths,
             uint256 minProfit,
             uint256 minAmountOutFromFirstSwap,
-            uint24 twapDuration,
             uint256 twapMaxDeviationBps
         ) = abi.decode(
             userData,
-            (address, address, address[], address[][], uint256, uint256, uint24, uint256)
+            (address, address, address[], address[][], uint256, uint256, uint256)
         );
 
         require(inputToken != address(0) && middleToken != address(0), "Invalid token address provided");
@@ -79,12 +100,14 @@ contract ArbitrageBalancer is ReentrancyGuard {
         uint256 totalRepayment = loanAmount + fee;
 
         // On-chain price verification using TWAP oracle
-        uint256 twapPrice = twapOracle.consult(inputToken, loanAmount, middleToken, twapDuration);
+        // The new oracle's consult function has a different signature
+        uint256 twapAmountOut = twapOracle.consult(inputToken, loanAmount, middleToken);
         uint[] memory amountsFromRouter = IUniswapV2Router(routers[0]).getAmountsOut(loanAmount, paths[0]);
-        uint256 spotPrice = amountsFromRouter[1];
+        uint256 spotAmountOut = amountsFromRouter[1];
 
-        uint256 priceDifference = (spotPrice > twapPrice) ? spotPrice - twapPrice : twapPrice - spotPrice;
-        require(priceDifference * 10000 / twapPrice <= twapMaxDeviationBps, "Price deviates too much from TWAP");
+        // The check remains logically the same, but uses the new variable names for clarity
+        uint256 priceDifference = (spotAmountOut > twapAmountOut) ? spotAmountOut - twapAmountOut : twapAmountOut - spotAmountOut;
+        require(priceDifference * 10000 / twapAmountOut <= twapMaxDeviationBps, "Price deviates too much from TWAP");
 
         // 1. First Swap with slippage protection
         IERC20(loanToken).approve(routers[0], loanAmount);
@@ -116,7 +139,7 @@ contract ArbitrageBalancer is ReentrancyGuard {
 
         IERC20(loanToken).transfer(address(vault), totalRepayment);
 
-        // 4. Calculate and withdraw profit
+        // 4. Calculate and send profit to owner
         uint256 profit = amountFromSecondSwap - totalRepayment;
         if (profit > 0) {
             IERC20(loanToken).transfer(owner, profit);

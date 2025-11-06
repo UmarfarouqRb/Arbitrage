@@ -1,11 +1,14 @@
-import ArbitrageBalancer from '../../contracts/artifacts/contracts/ArbitrageBalancer.sol/ArbitrageBalancer.json';
-import MockERC20 from '../../contracts/artifacts/contracts/MockERC20.sol/MockERC20.json';
-
-export const ArbitrageBalancerAddress = import.meta.env.VITE_ARBITRAGE_BALANCER_ADDRESS;
-export const ArbitrageBalancerABI = ArbitrageBalancer.abi;
-
-export const TokenAAddress = import.meta.env.VITE_TOKEN_A_ADDRESS;
-export const TokenAABI = MockERC20.abi;
-
-export const TokenBAddress = import.meta.env.VITE_TOKEN_B_ADDRESS;
-export const TokenBABI = MockERC20.abi;
+export const arbitrageBalancerABI = [
+    "constructor(address,address)",
+    "event FlashLoanExecuted(address indexed,uint256,int256)",
+    "event ProfitWithdrawal(address indexed,uint256)",
+    "function owner() view returns (address)",
+    "function pause()",
+    "function paused() view returns (bool)",
+    "function receiveFlashLoan(address[],uint256[],uint256[],bytes)",
+    "function startFlashloan(address,uint256,bytes)",
+    "function twapOracle() view returns (address)",
+    "function unpause()",
+    "function vault() view returns (address)",
+    "function withdraw(address)"
+];

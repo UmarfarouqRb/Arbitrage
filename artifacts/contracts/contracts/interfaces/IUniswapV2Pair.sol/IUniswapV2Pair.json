@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
   "contractName": "IUniswapV2Pair",
-  "sourceName": "contracts/contracts/UniswapV2TwapOracle.sol",
+  "sourceName": "contracts/contracts/interfaces/IUniswapV2Pair.sol",
   "abi": [
     {
       "inputs": [],
@@ -9,17 +9,17 @@
       "outputs": [
         {
           "internalType": "uint112",
-          "name": "",
+          "name": "reserve0",
           "type": "uint112"
         },
         {
           "internalType": "uint112",
-          "name": "",
+          "name": "reserve1",
           "type": "uint112"
         },
         {
           "internalType": "uint32",
-          "name": "",
+          "name": "blockTimestampLast",
           "type": "uint32"
         }
       ],
@@ -47,6 +47,32 @@
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "token0",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "token1",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
         }
       ],
       "stateMutability": "view",

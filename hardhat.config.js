@@ -1,9 +1,21 @@
 require('@nomicfoundation/hardhat-toolbox');
 require("dotenv").config();
+require("./tasks/start-flash-loan");
+require("./tasks/pause-contract");
+require("./tasks/unpause-contract");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.20",
+  solidity: {
+    version: "0.8.20",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      },
+      viaIR: true
+    }
+  },
   networks: {
     sepolia: {
       url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
