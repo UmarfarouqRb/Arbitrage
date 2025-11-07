@@ -19,6 +19,7 @@ export default function App() {
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [tradeStatus, setTradeStatus] = useState(null);
 
   const navLinkStyle = ({ isActive }) => ({
     display: 'block',
@@ -34,13 +35,15 @@ export default function App() {
 
   const handleCheckTrade = async () => {
     setLoading(true);
+    setTradeStatus(null);
     try {
       setError(null);
       if (!tokenAddress || !inputDex || !outputDex) {
         throw new Error("Please fill in all fields before checking a trade.");
       }
+      // Simulate an API call to check the trade
       await new Promise(resolve => setTimeout(resolve, 1500));
-      alert(`Checking trade for ${tokenSymbol || tokenAddress} between ${inputDex} and ${outputDex}`);
+      setTradeStatus(`Successfully checked trade for ${tokenSymbol || tokenAddress} between ${inputDex} and ${outputDex}`);
     } catch (err) {
       console.error('Error checking trade:', err);
       setError(err.message);
@@ -80,6 +83,11 @@ export default function App() {
           {error && (
             <div style={{ color: 'red', backgroundColor: '#ffeded', padding: '12px', borderRadius: '8px', margin: '20px 0' }}>
               <strong>Error:</strong> {error}
+            </div>
+          )}
+          {tradeStatus && (
+            <div style={{ color: 'green', backgroundColor: '#e6ffed', padding: '12px', borderRadius: '8px', margin: '20px 0' }}>
+              <strong>Success:</strong> {tradeStatus}
             </div>
           )}
 
