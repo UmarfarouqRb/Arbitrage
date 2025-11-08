@@ -24,12 +24,13 @@ struct FlashLoanData {
     uint256 minProfit;
     uint256 minAmountOutFromFirstSwap;
     uint256 twapMaxDeviationBps;
+    address oracleAddress;
+    address factory;
 }
 
 contract ArbitrageBalancer is ReentrancyGuard, Pausable {
-    address public immutable multiSig;
+    address public multiSig;
     IVault public immutable vault;
-    UniswapV2TwapOracle public immutable twapOracle;
 
     mapping(address => bool) public whitelistedRouters;
     uint256 private constant BPS_DIVISOR = 10000;
@@ -38,20 +39,28 @@ contract ArbitrageBalancer is ReentrancyGuard, Pausable {
     event ProfitWithdrawal(address indexed token, uint256 amount);
     event RouterAdded(address indexed router);
     event RouterRemoved(address indexed router);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     modifier onlyMultiSig() {
         require(msg.sender == multiSig, "Only multi-sig can call this function");
         _;
     }
 
-    constructor(address _vault, address _twapOracle) {
-        multiSig = 0x7D948Ca4D146Fc4fBD667060EB6D4bfD16fCa2f6;
+    constructor(address _vault, address _multiSig) {
+        multiSig = _multiSig;
         vault = IVault(_vault);
-        twapOracle = UniswapV2TwapOracle(_twapOracle);
 
         // Whitelist popular Uniswap V2 compatible routers
         whitelistedRouters[0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D] = true; // Uniswap V2
         whitelistedRouters[0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F] = true; // Sushiswap
+
+        emit OwnershipTransferred(address(0), _multiSig);
+    }
+
+    function transferOwnership(address newMultiSig) public virtual onlyMultiSig {
+        require(newMultiSig != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(multiSig, newMultiSig);
+        multiSig = newMultiSig;
     }
 
     function addRouter(address router) external onlyMultiSig {
@@ -100,17 +109,16 @@ contract ArbitrageBalancer is ReentrancyGuard, Pausable {
         FlashLoanData memory data = abi.decode(originalUserData, (FlashLoanData));
         _validateLoanData(data);
 
+        if (data.twapMaxDeviationBps > 0) {
+            UniswapV2TwapOracle(data.oracleAddress).update(data.factory, data.inputToken, data.middleToken);
+        }
+
         (uint256 loanAmount, uint256 totalRepayment) = _getLoanDetails(amounts, feeAmounts);
 
+        _verifyPrice(data, loanAmount);
+
         uint256 amountFromFirstSwap = _executeFirstSwap(data, loanAmount);
-
-        _verifyPrice(data, loanAmount, amountFromFirstSwap);
-
         uint256 amountFromSecondSwap = _executeSecondSwap(data, amountFromFirstSwap, totalRepayment);
-
-        if (data.twapMaxDeviationBps > 0) {
-            twapOracle.update(data.inputToken, data.middleToken);
-        }
 
         int256 netProfit = int256(amountFromSecondSwap) - int256(totalRepayment);
         require(netProfit >= 0, "Trade was not profitable after fees");
@@ -132,13 +140,29 @@ contract ArbitrageBalancer is ReentrancyGuard, Pausable {
     function _validateLoanData(FlashLoanData memory data) internal view {
         require(data.inputToken != address(0) && data.middleToken != address(0), "Invalid token address provided");
         require(data.routers.length == 2 && whitelistedRouters[data.routers[0]] && whitelistedRouters[data.routers[1]], "Invalid router configuration");
-        require(data.paths.length == 2, "Invalid paths configuration");
+        require(data.paths.length == 2, "Invalid paths configuration: must have two paths");
+        require(data.paths[0].length == 2, "Invalid paths configuration: path 0 must have two tokens");
+        require(data.paths[1].length == 2, "Invalid paths configuration: path 1 must have two tokens");
+        require(data.paths[0][0] == data.inputToken, "Invalid paths configuration: path 0 must start with input token");
+        require(data.paths[0][1] == data.middleToken, "Invalid paths configuration: path 0 must end with middle token");
+        require(data.paths[1][0] == data.middleToken, "Invalid paths configuration: path 1 must start with middle token");
+        require(data.paths[1][1] == data.inputToken, "Invalid paths configuration: path 1 must end with input token");
+        require(data.oracleAddress != address(0), "Invalid oracle address");
+        require(data.factory != address(0), "Invalid factory address");
     }
 
     function _getLoanDetails(uint256[] calldata amounts, uint256[] calldata feeAmounts) internal pure returns (uint256, uint256) {
         uint256 loanAmount = amounts[0];
         uint256 fee = feeAmounts[0];
         return (loanAmount, loanAmount + fee);
+    }
+
+    function _verifyPrice(FlashLoanData memory data, uint256 loanAmount) internal view {
+        if (data.twapMaxDeviationBps > 0) {
+            uint256 twapAmountOut = UniswapV2TwapOracle(data.oracleAddress).consult(data.factory, data.inputToken, loanAmount, data.middleToken);
+            uint256 priceDifference = (data.minAmountOutFromFirstSwap > twapAmountOut) ? data.minAmountOutFromFirstSwap - twapAmountOut : twapAmountOut - data.minAmountOutFromFirstSwap;
+            require(priceDifference * BPS_DIVISOR / twapAmountOut <= data.twapMaxDeviationBps, "Price deviates too much from TWAP");
+        }
     }
 
     function _executeFirstSwap(FlashLoanData memory data, uint256 loanAmount) internal returns (uint256) {
@@ -151,14 +175,6 @@ contract ArbitrageBalancer is ReentrancyGuard, Pausable {
             block.timestamp
         );
         return amountsOut[amountsOut.length - 1];
-    }
-
-    function _verifyPrice(FlashLoanData memory data, uint256 loanAmount, uint256 amountFromFirstSwap) internal view {
-        if (data.twapMaxDeviationBps > 0) {
-            uint256 twapAmountOut = twapOracle.consult(data.inputToken, loanAmount, data.middleToken);
-            uint256 priceDifference = (amountFromFirstSwap > twapAmountOut) ? amountFromFirstSwap - twapAmountOut : twapAmountOut - amountFromFirstSwap;
-            require(priceDifference * BPS_DIVISOR / twapAmountOut <= data.twapMaxDeviationBps, "Price deviates too much from TWAP");
-        }
     }
 
     function _executeSecondSwap(FlashLoanData memory data, uint256 amountFromFirstSwap, uint256 totalRepayment) internal returns (uint256) {
