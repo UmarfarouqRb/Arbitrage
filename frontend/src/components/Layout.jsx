@@ -1,25 +1,25 @@
 import { useContext } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
 import { NetworkContext } from '../contexts/NetworkContext';
 import { networks } from '../utils/networks';
-import '../index.css'; // Import the new CSS file
+import './Layout.css';
 
-export default function Layout({ children }) {
-  const { ready, authenticated, user, login, logout } = usePrivy();
+export default function Layout({ children, isOwner }) {
+  const { ready, authenticated, login, logout } = usePrivy();
   const { selectedNetwork, setSelectedNetwork } = useContext(NetworkContext);
-  const address = user?.wallet?.address;
 
   const handleNetworkChange = (e) => {
     setSelectedNetwork(e.target.value);
   };
 
   return (
-    <div className="app">
+    <div className="app-container">
       <header className="app-header">
-        <h1>Arbitrage Finder</h1>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <select value={selectedNetwork} onChange={handleNetworkChange} className="input">
+        <h1><Link to="/">Arbitrage Finder</Link></h1>
+        <div className="header-controls">
+          {isOwner && <Link to="/owner" className="nav-link">Owner</Link>}
+          <select value={selectedNetwork} onChange={handleNetworkChange} className="network-select">
             {Object.keys(networks).map(networkKey => (
               <option key={networkKey} value={networkKey}>
                 {networks[networkKey].name}
@@ -27,15 +27,18 @@ export default function Layout({ children }) {
             ))}
           </select>
           {ready && (authenticated ? (
-            <button onClick={logout} className="button-secondary" style={{ marginLeft: '1rem' }}>Logout</button>
+            <button onClick={logout} className="button-secondary">Logout</button>
           ) : (
-            <button onClick={login} className="button-primary" style={{ marginLeft: '1rem' }}>Login</button>
+            <button onClick={login} className="button-primary">Login</button>
           ))}
         </div>
       </header>
       <main className="main-content">
         {children}
       </main>
+      <footer className="app-footer">
+        <p>powered by forge inc</p>
+      </footer>
     </div>
   );
 }
