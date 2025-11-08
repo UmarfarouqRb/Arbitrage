@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 
-const ArbitrageOpportunities = ({ tokenAddress }) => {
+const ArbitrageOpportunities = () => {
   const [opportunities, setOpportunities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [tokenAddress, setTokenAddress] = useState('');
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -11,6 +12,7 @@ const ArbitrageOpportunities = ({ tokenAddress }) => {
     if (!tokenAddress) {
       setOpportunities([]);
       setLoading(false);
+      setError(null);
       return;
     }
     setLoading(true);
@@ -84,14 +86,15 @@ const ArbitrageOpportunities = ({ tokenAddress }) => {
       observer.observe(containerRef.current);
     }
 
-    fetchAndRankOpportunities();
-    const intervalId = setInterval(fetchAndRankOpportunities, 600000); // Refresh every 10 minutes
+    const handler = setTimeout(() => {
+      fetchAndRankOpportunities();
+    }, 500);
 
     return () => {
-      if(containerRef.current) {
-        observer.unobserve(containerRef.current);
-      }
-      clearInterval(intervalId);
+        clearTimeout(handler);
+        if(containerRef.current) {
+            observer.unobserve(containerRef.current);
+        }
     };
   }, [tokenAddress]);
 
@@ -113,6 +116,8 @@ const ArbitrageOpportunities = ({ tokenAddress }) => {
           marginBottom: '20px',
           fontSize: isSmallScreen ? '1.2em' : '1.5em' 
       },
+      searchContainer: { marginBottom: '20px', display: 'flex' },
+      tokenInput: { flex: 1, padding: '10px', fontSize: '16px', borderRadius: '4px', border: '1px solid #ccc' },
       grid: { 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
@@ -175,11 +180,20 @@ const ArbitrageOpportunities = ({ tokenAddress }) => {
   return (
     <div ref={containerRef} style={styles.container}>
       <h2 style={styles.header}>Top 10 Arbitrage Opportunities</h2>
+      <div style={styles.searchContainer}>
+        <input
+          type="text"
+          placeholder="Enter token contract address to find opportunities"
+          value={tokenAddress}
+          onChange={(e) => setTokenAddress(e.target.value)}
+          style={styles.tokenInput}
+        />
+      </div>
       {loading ? (
         <p style={{textAlign: 'center'}}>Finding the best opportunities...</p>
       ) : error ? (
         <p style={styles.error}>{error}</p>
-      ) : (
+      ) : opportunities.length > 0 ? (
         <div style={styles.grid}>
           {opportunities.map((opp, index) => (
             <div key={index} style={styles.card}>
@@ -198,6 +212,8 @@ const ArbitrageOpportunities = ({ tokenAddress }) => {
             </div>
           ))}
         </div>
+      ) : (
+        <p style={{textAlign: 'center'}}>Enter a token address to find opportunities.</p>
       )}
     </div>
   );

@@ -1,21 +1,19 @@
-
 # Dependencies
-
-frontend/node_modules
 /node_modules
 /frontend/node_modules
 
-# Env files
-.env
-*.env
-
 # Build output
-/frontend/build
 /frontend/dist
 
-# Logs
-firebase-debug.log
+# Log files
+.log
+.log*
+
+# Environment variables
+.env
+.env.*
+!/.env.example
 
 # IDE files
-.idx
-.vercel
+.idea/
+.vscode/

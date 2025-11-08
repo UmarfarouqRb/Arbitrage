@@ -57,13 +57,14 @@ contract ArbitrageBalancer is ReentrancyGuard, Pausable {
         address token,
         uint256 amount,
         bytes calldata userData
-    ) external onlyOwner whenNotPaused {
+    ) external whenNotPaused {
         address[] memory tokens = new address[](1);
         tokens[0] = token;
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
 
-        vault.flashLoan(address(this), tokens, amounts, userData);
+        bytes memory newUserData = abi.encode(msg.sender, userData);
+        vault.flashLoan(address(this), tokens, amounts, newUserData);
     }
 
     function receiveFlashLoan(
@@ -72,8 +73,10 @@ contract ArbitrageBalancer is ReentrancyGuard, Pausable {
         uint256[] calldata feeAmounts,
         bytes calldata userData
     ) external nonReentrant {
+        (address initiator, bytes memory originalUserData) = abi.decode(userData, (address, bytes));
+        
         _validateFlashLoan(tokens);
-        FlashLoanData memory data = abi.decode(userData, (FlashLoanData));
+        FlashLoanData memory data = abi.decode(originalUserData, (FlashLoanData));
         _validateLoanData(data);
 
         (uint256 loanAmount, uint256 totalRepayment) = _getLoanDetails(amounts, feeAmounts);
@@ -92,7 +95,7 @@ contract ArbitrageBalancer is ReentrancyGuard, Pausable {
         
         uint256 profit = amountFromSecondSwap - totalRepayment;
         if (profit > 0) {
-            IERC20(tokens[0]).transfer(owner, profit);
+            IERC20(tokens[0]).transfer(initiator, profit);
         }
 
         emit FlashLoanExecuted(tokens[0], loanAmount, int256(profit));

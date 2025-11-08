@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -13,14 +13,6 @@ export default function App() {
   const { ready, authenticated, user, login, logout } = usePrivy();
   const address = user?.wallet?.address;
 
-  const [tokenAddress, setTokenAddress] = useState('');
-  const [inputDex, setInputDex] = useState('');
-  const [outputDex, setOutputDex] = useState('');
-  const [tokenSymbol, setTokenSymbol] = useState('');
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [tradeStatus, setTradeStatus] = useState(null);
-
   const navLinkStyle = ({ isActive }) => ({
     display: 'block',
     padding: '12px 20px',
@@ -32,25 +24,6 @@ export default function App() {
     fontWeight: isActive ? 'bold' : 'normal',
     transition: 'background-color 0.2s, color 0.2s',
   });
-
-  const handleCheckTrade = async () => {
-    setLoading(true);
-    setTradeStatus(null);
-    try {
-      setError(null);
-      if (!tokenAddress || !inputDex || !outputDex) {
-        throw new Error("Please fill in all fields before checking a trade.");
-      }
-      // Simulate an API call to check the trade
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setTradeStatus(`Successfully checked trade for ${tokenSymbol || tokenAddress} between ${inputDex} and ${outputDex}`);
-    } catch (err) {
-      console.error('Error checking trade:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <Router>
@@ -79,18 +52,6 @@ export default function App() {
             )}
           </header>
 
-          {loading && <div style={{ textAlign: 'center', padding: '20px' }}><strong>Loading...</strong></div>}
-          {error && (
-            <div style={{ color: 'red', backgroundColor: '#ffeded', padding: '12px', borderRadius: '8px', margin: '20px 0' }}>
-              <strong>Error:</strong> {error}
-            </div>
-          )}
-          {tradeStatus && (
-            <div style={{ color: 'green', backgroundColor: '#e6ffed', padding: '12px', borderRadius: '8px', margin: '20px 0' }}>
-              <strong>Success:</strong> {tradeStatus}
-            </div>
-          )}
-
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}><h2>Loading Page...</h2></div>}>
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -101,22 +62,12 @@ export default function App() {
               } />
               <Route path="/finder" element={
                 <ErrorBoundary>
-                  <ArbitrageFinder 
-                    tokenAddress={tokenAddress}
-                    setTokenAddress={setTokenAddress}
-                    inputDex={inputDex}
-                    setInputDex={setInputDex}
-                    outputDex={outputDex}
-                    setOutputDex={setOutputDex}
-                    onCheckTrade={handleCheckTrade}
-                    tokenSymbol={tokenSymbol}
-                    disabled={loading}
-                  />
+                  <ArbitrageFinder />
                 </ErrorBoundary>
               } />
               <Route path="/opportunities" element={
                 <ErrorBoundary>
-                  <ArbitrageOpportunities tokenAddress={tokenAddress} />
+                  <ArbitrageOpportunities />
                 </ErrorBoundary>
               } />
               <Route path="/history" element={
