@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
 import { NetworkContext } from '../contexts/NetworkContext';
 import { networks } from '../utils/networks';
+import SideNav from './SideNav';
 
 export default function Layout({ children, isOwner }) {
   const { ready, authenticated, login, logout } = usePrivy();
@@ -15,11 +16,8 @@ export default function Layout({ children, isOwner }) {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1><Link to="/">Arbitrage Finder</Link></h1>
+        <h1 className="app-title"><Link to="/">Arbitrage Finder</Link></h1>
         <div className="header-controls">
-          <Link to="/finder">Finder</Link>
-          <Link to="/arbitrage-bot">Arbitrage Bot</Link>
-          {isOwner && <Link to="/owner">Owner</Link>}
           <select value={selectedNetwork} onChange={handleNetworkChange} className="select">
             {Object.keys(networks).map(networkKey => (
               <option key={networkKey} value={networkKey}>
@@ -34,9 +32,12 @@ export default function Layout({ children, isOwner }) {
           ))}
         </div>
       </header>
-      <main className="main-content">
-        {children}
-      </main>
+      <div className="app-body">
+        <SideNav isOwner={isOwner} />
+        <main className="main-content">
+          {children}
+        </main>
+      </div>
       <footer className="app-footer">
         <p>powered by forge inc</p>
       </footer>

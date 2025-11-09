@@ -1,0 +1,35 @@
+.side-nav {
+  background-color: #002b36;
+  padding: 1rem;
+  height: 100vh;
+  color: #839496;
+}
+
+.side-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.side-nav li {
+  margin-bottom: 1rem;
+}
+
+.side-nav a {
+  color: #839496;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.side-nav a:hover {
+  background-color: #073642;
+  color: #eee8d5;
+}
+
+.side-nav a svg {
+  margin-right: 0.5rem;
+}

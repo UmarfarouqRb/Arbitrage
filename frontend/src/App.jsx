@@ -8,7 +8,7 @@ import { NetworkContext } from './contexts/NetworkContext';
 import { arbitrageBalancerABI, gnosisSafeABI } from './utils/abi';
 
 const ArbitrageFinder = lazy(() => import('./components/ArbitrageFinder'));
-const ArbitrageOpportunities = lazy(() => import('./components/ArbitrageOpportunities'));
+const ArbitrageOpportunitiesPage = lazy(() => import('./pages/ArbitrageOpportunitiesPage'));
 const OwnerSection = lazy(() => import('./components/OwnerSection'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const ArbitrageBotPage = lazy(() => import('./pages/ArbitrageBotPage'));
@@ -30,20 +30,16 @@ const App = () => {
           const owners = await gnosisSafe.getOwners();
 
           const isUserOwner = owners.map(owner => owner.toLowerCase()).includes(user.wallet.address.toLowerCase());
-          if (isUserOwner !== isOwner) {
-            setIsOwner(isUserOwner);
-          }
+          setIsOwner(isUserOwner);
         } catch (error) {
           console.error("Error checking ownership:", error);
-          if (isOwner) {
-            setIsOwner(false);
-          }
+          setIsOwner(false);
         }
       }
     };
 
     checkOwnership();
-  }, [user, networkConfig, isOwner]);
+  }, [user, networkConfig]);
 
   return (
     <Router>
@@ -54,7 +50,11 @@ const App = () => {
             <Route path="/finder" element={
               <ErrorBoundary>
                 <ArbitrageFinder />
-                <ArbitrageOpportunities />
+              </ErrorBoundary>
+            } />
+            <Route path="/opportunities" element={
+              <ErrorBoundary>
+                <ArbitrageOpportunitiesPage />
               </ErrorBoundary>
             } />
             <Route path="/arbitrage-bot" element={

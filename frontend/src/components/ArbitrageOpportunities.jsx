@@ -1,6 +1,7 @@
 import { useState, useContext, useCallback } from 'react';
 import { NetworkContext } from '../contexts/NetworkContext';
 import { useArbitrageExecutor } from '../hooks/useArbitrageExecutor';
+import './ArbitrageOpportunities.css';
 
 const ArbitrageOpportunities = ({ opportunities, loading, error: fetchError }) => {
   const [amounts, setAmounts] = useState({});
@@ -35,12 +36,12 @@ const ArbitrageOpportunities = ({ opportunities, loading, error: fetchError }) =
   }, [amounts, executeTrade]);
 
   return (
-    <div>
+    <div className="arbitrage-opportunities-container">
       <h2>Arbitrage Opportunities</h2>
       {fetchError && <p>{fetchError}</p>}
       {executionError && <p>Execution failed: {executionError}</p>}
-      <div>
-        <table>
+      <div className="table-responsive">
+        <table className="opportunities-table">
           <thead>
             <tr>
               <th>Token Pair</th>

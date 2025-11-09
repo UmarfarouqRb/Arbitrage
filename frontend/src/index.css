@@ -22,6 +22,11 @@ code {
   min-height: 100vh;
 }
 
+.app-body {
+    display: flex;
+    flex-grow: 1;
+}
+
 /* Header */
 .app-header {
   display: flex;
@@ -35,6 +40,34 @@ code {
 .header-controls {
   display: flex;
   align-items: center;
+}
+
+/* Side Navigation */
+.side-nav {
+  width: 200px;
+  padding: 1rem;
+  background-color: #eee8d5;
+  border-right: 1px solid #93a1a1;
+}
+
+.side-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.side-nav li {
+  margin-bottom: 1rem;
+}
+
+.side-nav a {
+  text-decoration: none;
+  color: #657b83;
+  font-weight: 500;
+}
+
+.side-nav a:hover {
+  color: #cb4b16;
 }
 
 /* Main Content */

@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect } from 'react';
 import { NetworkContext } from '../contexts/NetworkContext';
 import { networks } from '../utils/networks';
+import { tokens } from '../utils/tokens';
 
 const TradeExecutor = ({ onFindOpportunities }) => {
   const { networkConfig } = useContext(NetworkContext);
@@ -9,10 +10,22 @@ const TradeExecutor = ({ onFindOpportunities }) => {
   const [dex1, setDex1] = useState('');
   const [dex2, setDex2] = useState('');
   const [dexOptions, setDexOptions] = useState([]);
+  const [tokenOptions, setTokenOptions] = useState([]);
 
   useEffect(() => {
-    if (networkConfig) {
+    if (networkConfig && networkConfig.slug) {
       setDexOptions(networks[networkConfig.slug].dexRouters);
+      const networkTokens = tokens[networkConfig.slug];
+      if (networkTokens) {
+        const symbols = Object.keys(networkTokens);
+        setTokenOptions(symbols);
+        if (symbols.length > 0) {
+          setTokenA(networkTokens[symbols[0]]); // Default to the first token
+        }
+        if (networkTokens.WETH) {
+          setTokenB(networkTokens.WETH); // Default Token B to WETH
+        }
+      }
     }
   }, [networkConfig]);
 
@@ -24,6 +37,18 @@ const TradeExecutor = ({ onFindOpportunities }) => {
     onFindOpportunities({ tokenA, tokenB, dex1, dex2 });
   };
 
+  const handleTokenAChange = (e) => {
+    const selectedTokenSymbol = e.target.value;
+    if (networkConfig && tokens[networkConfig.slug]) {
+      setTokenA(tokens[networkConfig.slug][selectedTokenSymbol]);
+    }
+  };
+
+  // Find the symbol for the current tokenA address to set the dropdown value correctly
+  const selectedTokenASymbol = networkConfig && tokens[networkConfig.slug] ? 
+    Object.keys(tokens[networkConfig.slug]).find(key => tokens[networkConfig.slug][key] === tokenA) : '';
+
+
   return (
     <div className="arbitrage-finder-container">
       <h2>Find Arbitrage Opportunities</h2>
@@ -32,13 +57,16 @@ const TradeExecutor = ({ onFindOpportunities }) => {
       </p>
 
       <div className="input-group">
-        <input
-          type="text"
-          placeholder="Token A Address"
-          value={tokenA}
-          onChange={(e) => setTokenA(e.target.value)}
-          className="input"
-        />
+        <select
+          value={selectedTokenASymbol || ''}
+          onChange={handleTokenAChange}
+          className="select"
+        >
+          <option value="">Select Token A</option>
+          {tokenOptions.map(symbol => (
+            <option key={symbol} value={symbol}>{symbol}</option>
+          ))}
+        </select>
         <input
           type="text"
           placeholder="Token B Address"

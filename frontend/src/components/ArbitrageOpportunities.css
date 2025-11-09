@@ -1,0 +1,50 @@
+.arbitrage-opportunities-container {
+  padding: 2rem;
+}
+
+.arbitrage-opportunities-container h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.opportunities-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.opportunities-table th,
+.opportunities-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.opportunities-table thead {
+  background-color: #f8f9fa;
+}
+
+.opportunities-table tbody tr:hover {
+  background-color: #f1f3f5;
+}
+
+.opportunities-table .text-center {
+    text-align: center;
+}
+
+.text-danger {
+  color: #dc3545;
+}
+
+.text-success {
+  color: #28a745;
+}
+
+.opportunities-table input[type="number"] {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100px;
+}

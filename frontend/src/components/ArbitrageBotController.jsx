@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Wallet } from 'ethers';
+import './ArbitrageBotController.css';
 
 const ArbitrageBotController = () => {
   const [privateKey, setPrivateKey] = useState('');
@@ -77,7 +78,7 @@ const ArbitrageBotController = () => {
   const runArbitrageCheck = useCallback(async () => {
     setLog(prev => `${prev}\n[${new Date().toLocaleTimeString()}] Checking for opportunities...`);
     try {
-      const response = await fetch('/api/arbitrage-bot', {
+      const response = await fetch('/.netlify/functions/arbitrage-bot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ privateKey, infuraProjectId: infuraApiKey }),
@@ -114,12 +115,12 @@ const ArbitrageBotController = () => {
   };
 
   return (
-    <div>
+    <div className="arbitrage-bot-controller">
       <h2>Arbitrage Bot Controller</h2>
       
-      <div>
+      <div className="input-container">
         <label htmlFor="privateKey">Bot Private Key (persists in session)</label>
-        <div>
+        <div className="input-wrapper">
           <input
             type="password"
             id="privateKey"
@@ -132,15 +133,16 @@ const ArbitrageBotController = () => {
             onClick={handleResetPrivateKey}
             disabled={isBotRunning}
             title="Reset Private Key"
+            className="reset-button"
           >
             Reset
           </button>
         </div>
       </div>
 
-      <div>
+      <div className="input-container">
         <label htmlFor="infuraApiKey">Infura API Key (persists in session)</label>
-        <div>
+        <div className="input-wrapper">
           <input
             type="password"
             id="infuraApiKey"
@@ -153,6 +155,7 @@ const ArbitrageBotController = () => {
             onClick={handleResetInfuraApiKey}
             disabled={isBotRunning}
             title="Reset Infura API Key"
+            className="reset-button"
           >
             Reset
           </button>
@@ -169,11 +172,12 @@ const ArbitrageBotController = () => {
       <button
         onClick={handleToggleBot}
         disabled={!botWalletAddress || botWalletAddress === 'Invalid Private Key' || !infuraApiKey}
+        className="button-primary start-stop-button"
       >
         {isBotRunning ? 'Stop Bot' : 'Start Bot'}
       </button>
 
-      <div>
+      <div className="log-container">
           <h3>Bot Logs:</h3>
           <pre ref={logRef}>{log}</pre>
       </div>
