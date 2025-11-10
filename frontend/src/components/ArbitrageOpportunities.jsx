@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './ArbitrageOpportunities.css';
 
 const ArbitrageOpportunities = () => {
   const [opportunities, setOpportunities] = useState([]);

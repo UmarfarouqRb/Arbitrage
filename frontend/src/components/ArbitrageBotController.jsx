@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { JsonRpcProvider, Contract, Wallet } from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
 import { uniswapV2RouterABI, arbitrageBalancerABI } from '../utils/abi';
-import './ArbitrageBotController.css';
 
 const ArbitrageBotController = () => {
   const {
@@ -228,7 +227,7 @@ const ArbitrageBotController = () => {
             <input value={tokenB} onChange={(e) => setTokenB(e.target.value)} />
           </div>
 
-          <div className="form-section">
+          <div className="form.section">
             <label>DEX 1 Router</label>
             <input value={dex1} onChange={(e) => setDex1(e.target.value)} />
             <label>DEX 2 Router</label>

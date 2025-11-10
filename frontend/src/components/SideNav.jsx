@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { FaHome, FaSearch, FaRobot, FaListAlt, FaTools } from 'react-icons/fa';
-import './SideNav.css';
 
 const SideNav = ({ isOwner }) => {
   return (
