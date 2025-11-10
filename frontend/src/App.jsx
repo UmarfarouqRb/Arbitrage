@@ -1,3 +1,4 @@
+
 import { Suspense, lazy, useContext, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
@@ -5,6 +6,7 @@ import { Contract } from 'ethers';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import { NetworkContext } from './contexts/NetworkContext';
+import { WalletProvider } from './contexts/WalletContext';
 import { arbitrageBalancerABI, gnosisSafeABI } from './utils/abi';
 
 const ArbitrageFinder = lazy(() => import('./components/ArbitrageFinder'));
@@ -43,33 +45,35 @@ const App = () => {
 
   return (
     <Router>
-      <Layout isOwner={isOwner}>
-        <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}><h2>Loading Page...</h2></div>}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/finder" element={
-              <ErrorBoundary>
-                <ArbitrageFinder />
-              </ErrorBoundary>
-            } />
-            <Route path="/opportunities" element={
-              <ErrorBoundary>
-                <ArbitrageOpportunitiesPage />
-              </ErrorBoundary>
-            } />
-            <Route path="/arbitrage-bot" element={
-              <ErrorBoundary>
-                <ArbitrageBotPage />
-              </ErrorBoundary>
-            } />
-            <Route path="/owner" element={
-              <ErrorBoundary>
-                {isOwner ? <OwnerSection /> : <Navigate to="/" />}
-              </ErrorBoundary>
-            } />
-          </Routes>
-        </Suspense>
-      </Layout>
+      <WalletProvider>
+        <Layout isOwner={isOwner}>
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}><h2>Loading Page...</h2></div>}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/finder" element={
+                <ErrorBoundary>
+                  <ArbitrageFinder />
+                </ErrorBoundary>
+              } />
+              <Route path="/opportunities" element={
+                <ErrorBoundary>
+                  <ArbitrageOpportunitiesPage />
+                </ErrorBoundary>
+              } />
+              <Route path="/arbitrage-bot" element={
+                <ErrorBoundary>
+                  <ArbitrageBotPage />
+                </ErrorBoundary>
+              } />
+              <Route path="/owner" element={
+                <ErrorBoundary>
+                  {isOwner ? <OwnerSection /> : <Navigate to="/" />}
+                </ErrorBoundary>
+              } />
+            </Routes>
+          </Suspense>
+        </Layout>
+      </WalletProvider>
     </Router>
   );
 };

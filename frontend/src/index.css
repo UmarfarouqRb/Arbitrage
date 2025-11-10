@@ -1,5 +1,4 @@
 /* Global Styles */
-
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -8,11 +7,11 @@ body {
   background-color: #fdf6e3; /* Warm, light background */
   color: #657b83; /* Solarized base00 */
   font-size: 14px;
+  line-height: 1.5;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
 /* App Container */
@@ -24,173 +23,50 @@ code {
 
 .app-body {
     display: flex;
+    flex-direction: column; /* Changed to column for mobile-first */
     flex-grow: 1;
 }
 
 /* Header */
 .app-header {
   display: flex;
+  flex-direction: column; /* Stack vertically on mobile */
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background-color: #fdf6e3; /* Warm, light background */
-  border-bottom: 1px solid #eee8d5; /* Solarized base2 */
+  background-color: #fdf6e3;
+  border-bottom: 1px solid #eee8d5;
 }
 
 .header-controls {
   display: flex;
   align-items: center;
-}
-
-/* Side Navigation */
-.side-nav {
-  width: 200px;
-  padding: 1rem;
-  background-color: #eee8d5;
-  border-right: 1px solid #93a1a1;
-}
-
-.side-nav ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.side-nav li {
-  margin-bottom: 1rem;
-}
-
-.side-nav a {
-  text-decoration: none;
-  color: #657b83;
-  font-weight: 500;
-}
-
-.side-nav a:hover {
-  color: #cb4b16;
+  margin-top: 1rem; /* Add space when stacked */
 }
 
 /* Main Content */
 .main-content {
   flex-grow: 1;
   padding: 1rem;
-}
-
-/* Footer */
-.app-footer {
-  padding: 1rem;
-  background-color: #fdf6e3; /* Warm, light background */
-  border-top: 1px solid #eee8d5; /* Solarized base2 */
-  text-align: center;
-  font-size: 0.9em;
-  color: #93a1a1; /* Solarized base1 */
-}
-
-/* Arbitrage Finder */
-.arbitrage-finder-container {
-  background-color: #fdf6e3; /* Warm, light background */
-  padding: 2rem;
-  border-radius: 12px;
-  max-width: 600px;
-  margin: 2rem auto;
-  color: #657b83; /* Solarized base00 */
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border: 1px solid #eee8d5; /* Solarized base2 */
-}
-
-.arbitrage-finder-container h2 {
-  color: #cb4b16; /* Solarized orange */
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.arbitrage-finder-container p {
-  color: #93a1a1; /* Solarized base1 */
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-/* Input and Select */
-.input,
-.select {
-  width: 100%;
-  padding: 12px 15px;
-  background-color: #eee8d5; /* Solarized base2 */
-  border: 1px solid #93a1a1; /* Solarized base1 */
-  border-radius: 8px;
-  color: #657b83; /* Solarized base00 */
-  font-size: 1rem;
-}
-
-.input:focus,
-.select:focus {
-  outline: none;
-  border-color: #268bd2; /* Solarized blue */
-  box-shadow: 0 0 0 3px rgba(38, 139, 210, 0.2);
-}
-
-/* Buttons */
-.button-primary {
-  width: 100%;
-  padding: 15px;
-  background: #268bd2; /* Solarized blue */
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.button-primary:hover {
-  background: #1a6b9a; /* Darker blue */
-}
-
-.button-primary:disabled {
-  background: #93a1a1; /* Solarized base1 */
-  cursor: not-allowed;
-}
-
-.button-secondary {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.text-danger {
-  color: #dc3545;
-}
-
-.text-success {
-  color: #28a745;
+  overflow-y: auto; /* Allow content to scroll */
 }
 
 
-/* ... (add other component styles and refactor them to use the new color scheme) ... */
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .arbitrage-finder-container {
-    margin: 1rem;
-    padding: 1.5rem;
+/* --- Desktop Styles --- */
+@media (min-width: 768px) {
+  .app-body {
+    flex-direction: row; /* Side-by-side on desktop */
   }
 
-  .input-group {
-    flex-direction: column;
-  }
-  
   .app-header {
-    flex-direction: column;
+    flex-direction: row; /* Horizontal on desktop */
   }
-  
+
   .header-controls {
-    margin-top: 1rem;
+    margin-top: 0;
+  }
+
+  .main-content {
+    padding: 2rem;
   }
 }

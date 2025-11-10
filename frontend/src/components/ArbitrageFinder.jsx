@@ -1,62 +1,65 @@
-import { useState, useCallback } from 'react';
-import TradeExecutor from './TradeExecutor';
+import React, { useState } from 'react';
+import './ArbitrageOpportunities.css'; // Reusing styles
 
 const ArbitrageFinder = () => {
-  const [opportunity, setOpportunity] = useState(null);
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [tokenA, setTokenA] = useState('');
+  const [tokenB, setTokenB] = useState('');
+  const [dex1, setDex1] = useState('');
+  const [dex2, setDex2] = useState('');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false); // Add loading state
+  const [error, setError] = useState(null); // Add error state
 
-  const handleFindOpportunities = useCallback((data) => {
-    // For now, we'll just simulate finding an opportunity.
-    // In a real application, you would have a more complex logic here
-    // to calculate the potential profit and other details.
-    const simulatedOpportunity = {
-      ...data,
-      profit: '0.5 ETH', // This is just a placeholder
-    };
-    setOpportunity(simulatedOpportunity);
-  }, []);
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setResult(null);
 
-  const handleExecuteTrade = async () => {
-    if (opportunity) {
-      setIsExecuting(true);
-      try {
-        const response = await fetch('/.netlify/functions/execute-trade', {
-          method: 'POST',
-          body: JSON.stringify(opportunity),
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-          alert('Trade executed successfully!');
-          console.log('Trade execution result:', result);
-        } else {
-          alert(`Error executing trade: ${result.error}`);
-          console.error('Trade execution error:', result);
-        }
-      } catch (error) {
-        alert('An unexpected error occurred while executing the trade.');
-        console.error('Unexpected trade execution error:', error);
-      } finally {
-        setIsExecuting(false);
+    try {
+      const response = await fetch('/.netlify/functions/find-arbitrage', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ tokenA, tokenB, dex1, dex2 })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
+      
+      const data = await response.json();
+      setResult(data);
+    } catch (e) {
+      console.error("Failed to find arbitrage:", e);
+      setError(e.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <TradeExecutor onFindOpportunities={handleFindOpportunities} />
-      {opportunity && (
-        <div className="opportunity-container">
-          <h3>Opportunity Found!</h3>
-          <p>Token A: {opportunity.tokenA}</p>
-          <p>Token B: {opportunity.tokenB}</p>
-          <p>DEX 1: {opportunity.dex1}</p>
-          <p>DEX 2: {opportunity.dex2}</p>
-          <p>Estimated Profit: {opportunity.profit}</p>
-          <button onClick={handleExecuteTrade} className="button-primary" disabled={isExecuting}>
-            {isExecuting ? 'Executing...' : 'Execute Trade'}
-          </button>
+    <div className="arbitrage-finder-container">
+      <h2>Manual Arbitrage Finder</h2>
+      <form onSubmit={handleSearch} className="finder-form">
+        {/* Inputs for tokenA, tokenB, dex1, dex2 */}
+        <button type="submit" disabled={loading}>{loading ? 'Searching...' : 'Find Opportunity'}</button>
+      </form>
+      
+      {error && <div className="text-center text-danger"><p>{error}</p></div>}
+
+      {result && (
+        <div className="results-container">
+          <h3>Search Result</h3>
+          {result.isProfitable ? (
+            <div className="text-success">
+              <h4>Profitable Opportunity Found!</h4>
+              <p>Profit: {result.profit} {result.profitToken}</p>
+              <p>Path: {result.path.join(' -> ')}</p>
+            </div>
+          ) : (
+            <p>No profitable arbitrage found for the selected path.</p>
+          )}
         </div>
       )}
     </div>
