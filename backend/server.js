@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
+const { fork } = require('child_process');
 const { simulateTrade } = require('./simulate-manual-trade');
 const { executeTrade } = require('./execute-manual-trade');
 
@@ -12,6 +13,19 @@ const TRADE_HISTORY_FILE = path.join(__dirname, 'trade_history.json');
 
 app.use(cors());
 app.use(express.json());
+
+// --- Start the Arbitrage Bot ---
+if (process.env.NODE_ENV === 'production') {
+    console.log('Starting arbitrage bot in production mode...');
+    const botProcess = fork(path.join(__dirname, 'bot.js'));
+    botProcess.on('exit', (code) => {
+        console.error(`Arbitrage bot exited with code ${code}. Restarting...`);
+        // Optional: Implement a more robust restarting mechanism if needed
+        fork(path.join(__dirname, 'bot.js'));
+    });
+} else {
+    console.log('Skipping bot startup in development mode.');
+}
 
 // Basic status endpoint
 app.get('/api/status', (req, res) => {

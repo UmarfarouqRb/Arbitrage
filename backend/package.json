@@ -4,7 +4,8 @@
   "description": "Backend for the arbitrage bot",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "NODE_ENV=production node server.js",
+    "dev": "node server.js"
   },
   "author": "",
   "license": "ISC",
