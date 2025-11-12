@@ -11,7 +11,7 @@ import TopNav from './components/TopNav';
 // Lazy load the pages
 const ArbitrageBotPage = lazy(() => import('./pages/ArbitrageBotPage'));
 const ManualTradePage = lazy(() => import('./pages/ManualTradePage'));
-
+const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 
 const App = () => {
   const { login, logout, ready, authenticated } = usePrivy();
@@ -36,7 +36,7 @@ const App = () => {
             <TopNav />
             <div className="app-body">
               <main className="main-content">
-                <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}><h2>Loading...</h2></div>}>
+                <Suspense fallback={<div className="loading-message"><h2>Loading...</h2></div>}>
                   <Routes>
                     <Route path="/" element={
                       <ErrorBoundary>
@@ -53,6 +53,11 @@ const App = () => {
                         {ready && authenticated ? <ManualTradePage /> : <LoginPagePrompt />}
                       </ErrorBoundary>
                     } />
+                    <Route path="/history" element={
+                        <ErrorBoundary>
+                            {ready && authenticated ? <HistoryPage /> : <LoginPagePrompt />}
+                        </ErrorBoundary>
+                    } />
                   </Routes>
                 </Suspense>
               </main>
@@ -68,10 +73,10 @@ const App = () => {
 const LoginPagePrompt = () => {
   const { login } = usePrivy();
   return (
-    <div style={{ textAlign: 'center', padding: '50px' }}>
+    <div className="login-prompt">
       <h2>Please Log In</h2>
-      <p>You need to be logged in to access the Arbitrage Bot.</p>
-      <button onClick={login} className="button button-primary" style={{ marginTop: '20px' }}>Log In</button>
+      <p>You need to be logged in to access the application.</p>
+      <button onClick={login} className="button button-primary">Log In</button>
     </div>
   );
 };

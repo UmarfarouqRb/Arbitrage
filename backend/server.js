@@ -1,11 +1,14 @@
 
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs').promises;
+const path = require('path');
 const { simulateTrade } = require('./simulate-manual-trade');
 const { executeTrade } = require('./execute-manual-trade');
 
 const app = express();
 const port = process.env.PORT || 3001;
+const TRADE_HISTORY_FILE = path.join(__dirname, 'trade_history.json');
 
 app.use(cors());
 app.use(express.json());
@@ -13,6 +16,21 @@ app.use(express.json());
 // Basic status endpoint
 app.get('/api/status', (req, res) => {
     res.json({ status: 'ok', message: 'Backend is running' });
+});
+
+// Endpoint to get trade history
+app.get('/api/trade-history', async (req, res) => {
+    try {
+        const data = await fs.readFile(TRADE_HISTORY_FILE, 'utf8');
+        res.json(JSON.parse(data));
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // If the file doesn't exist, return an empty array, as no trades have happened yet.
+            return res.json([]);
+        }
+        console.error('Error reading trade history:', error);
+        res.status(500).json({ message: 'Failed to read trade history.' });
+    }
 });
 
 // Endpoint to simulate a manual trade
