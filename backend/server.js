@@ -51,6 +51,14 @@ app.post('/api/execute-trade', async (req, res) => {
     try {
         const tradeParams = req.body;
         console.log("Executing trade with params:", tradeParams);
+
+        // --- Security Enhancement: Re-simulate before execution ---
+        const simulationResult = await simulateTrade(tradeParams);
+        if (!simulationResult.isProfitable) {
+            console.warn(`[SECURITY] Blocked unprofitable manual trade. Estimated Profit: ${simulationResult.estimatedProfit}`);
+            return res.status(400).json({ message: "Trade is not profitable. Execution aborted." });
+        }
+
         const result = await executeTrade(tradeParams);
         res.json(result);
     } catch (error) {

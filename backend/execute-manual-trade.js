@@ -1,23 +1,22 @@
 
-const { Wallet, JsonRpcProvider, Contract, AbiCoder, parseUnits, formatUnits } = require('ethers');
-const { getDexConfig } = require('./utils');
-const ARBITRAGE_BALANCER_ABI = ["constructor(address _vault, address _multiSig)","event FlashLoanExecuted(address indexed token, uint256 loanAmount, int256 netProfit)","event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)","event Paused(address account)","event ProfitWithdrawal(address indexed token, uint256 amount)","event RouterAdded(address indexed router)","event RouterRemoved(address indexed router)","event Unpaused(address account)","function addRouter(address router) external","function multiSig() external view returns (address)","function pause() external","function paused() external view returns (bool)","function receiveFlashLoan(address[] calldata tokens, uint256[] calldata amounts, uint256[] calldata feeAmounts, bytes calldata userData) external","function removeRouter(address router) external","function startFlashloan(address token, uint256 amount, bytes calldata userData) external","function transferOwnership(address newMultiSig) external","function unpause() external","function vault() external view returns (address)","function whitelistedRouters(address) external view returns (bool)","function withdraw(address tokenAddress) external"];
+const { Wallet, Contract, AbiCoder, parseUnits, formatUnits } = require('ethers');
+const { getDexConfig, getProvider, getGasPrice } = require('./utils');
+const { NETWORKS, BOT_CONFIG } = require('./config');
+const ARBITRAGE_BALANCER_ABI = require('./abi.js');
 const ERC20_ABI = ["function decimals() external view returns (uint8)"];
 
-const GAS_LIMIT = 800000;
-const SLIPPAGE_BPS = 50; // 0.5%
 const ORACLE_ADDRESS = "0x0000000000000000000000000000000000000000"; // Oracle disabled for manual trades
 
 async function executeTrade(tradeParams) {
     const { network, tokenA, tokenB, dex1, dex2, loanAmount } = tradeParams;
 
-    if (!process.env.PRIVATE_KEY || !process.env.INFURA_URL || !process.env.ARBITRAGE_BOT_ADDRESS) {
-        throw new Error("Server is not configured for execution. Missing environment variables.");
+    if (!process.env.PRIVATE_KEY) {
+        throw new Error("Server is not configured for execution. Missing PRIVATE_KEY.");
     }
 
-    const provider = new JsonRpcProvider(process.env.INFURA_URL);
+    const provider = getProvider(network, NETWORKS);
     const wallet = new Wallet(process.env.PRIVATE_KEY, provider);
-    const arbitrageBot = new Contract(process.env.ARBITRAGE_BOT_ADDRESS, ARBITRAGE_BALANCER_ABI, wallet);
+    const arbitrageBot = new Contract(BOT_CONFIG.ARBITRAGE_CONTRACT_ADDRESS, ARBITRAGE_BALANCER_ABI, wallet);
 
     const dexConfig1 = getDexConfig(dex1);
     const dexConfig2 = getDexConfig(dex2);
@@ -25,9 +24,11 @@ async function executeTrade(tradeParams) {
     const tokenAContract = new Contract(tokenA, ERC20_ABI, provider);
     const tokenADecimals = await tokenAContract.decimals();
     const loanAmountBigInt = parseUnits(loanAmount, tokenADecimals);
-    const profitThresholdAmount = parseUnits('0.001', tokenADecimals); // Minimal profit for manual trade
+    const profitThresholdAmount = parseUnits('0', tokenADecimals); // We already checked for profit in server.js
 
-    const minAmountOutFromFirstSwap = 0; // We accept any amount for manual trade - could be improved
+    // We are willing to accept any amount back from the first swap in a manual trade.
+    // The security is enforced by the re-simulation in server.js.
+    const minAmountOutFromFirstSwap = 0; 
 
     const flashLoanData = {
         inputToken: tokenA,
@@ -43,13 +44,17 @@ async function executeTrade(tradeParams) {
 
     const userData = new AbiCoder().encode(['(address,address,address[],address[][],uint256,uint256,uint256,address,address)'], [Object.values(flashLoanData)]);
 
-    const feeData = await provider.getFeeData();
-    const gasPrice = feeData.maxFeePerGas;
+    const gasPrice = await getGasPrice(provider, BOT_CONFIG.GAS_PRICE_STRATEGY);
 
-    const tx = await arbitrageBot.startFlashloan(tokenA, loanAmountBigInt, userData, {
-        gasLimit: GAS_LIMIT,
-        gasPrice: gasPrice
-    });
+    const tx = await arbitrageBot.startFlashloan(
+        tokenA, 
+        loanAmountBigInt, 
+        userData, 
+        {
+            gasLimit: BOT_CONFIG.GAS_LIMIT,
+            gasPrice: gasPrice
+        }
+    );
 
     console.log(`Manual trade transaction sent! Hash: ${tx.hash}`);
     const receipt = await tx.wait();

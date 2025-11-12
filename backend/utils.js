@@ -1,5 +1,6 @@
 
 const { JsonRpcProvider, Contract } = require('ethers');
+const { DEX_ROUTERS, DEX_FACTORIES } = require('./config'); // Import DEX configs
 
 const ERC20_ABI = [
     "function decimals() external view returns (uint8)",
@@ -15,6 +16,19 @@ function getProvider(networkName, NETWORKS) {
         providerCache[networkName] = new JsonRpcProvider(rpcUrl);
     }
     return providerCache[networkName];
+}
+
+// --- NEWLY ADDED FUNCTION ---
+function getDexConfig(dexName) {
+    const network = 'base'; // Assuming 'base' for now, this can be parameterized if needed
+    const router = DEX_ROUTERS[network][dexName];
+    const factory = DEX_FACTORIES[network][dexName]; // Factory might be needed later
+
+    if (!router) {
+        throw new Error(`Router for ${dexName} on network ${network} not found.`);
+    }
+
+    return { router, factory };
 }
 
 async function getTokenDetails(tokenAddress, provider) {
@@ -43,6 +57,7 @@ async function getGasPrice(provider, strategy) {
 
 module.exports = {
     getProvider,
+    getDexConfig, // Export the new function
     getTokenDetails,
     getGasPrice,
 };

@@ -1,6 +1,7 @@
 
-const { JsonRpcProvider, Contract, parseUnits, formatUnits } = require('ethers');
-const { getDexConfig } = require('./utils'); // We will create this util file next
+const { Contract, parseUnits, formatUnits } = require('ethers');
+const { getDexConfig, getProvider } = require('./utils');
+const { NETWORKS } = require('./config');
 const ROUTER_ABI = ['function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts)'];
 const ERC20_ABI = ["function decimals() external view returns (uint8)"];
 
@@ -11,8 +12,9 @@ async function simulateTrade(tradeParams) {
         throw new Error("Missing required simulation parameters.");
     }
 
-    // We will need to create a function to get network-specific info
-    const provider = new JsonRpcProvider(process.env.INFURA_URL); 
+    // --- Correctly initialize provider ---
+    const provider = getProvider(network, NETWORKS);
+    
     const dexConfig1 = getDexConfig(dex1);
     const dexConfig2 = getDexConfig(dex2);
 
