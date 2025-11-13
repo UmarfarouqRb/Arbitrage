@@ -1,7 +1,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs').promises;
+const fs = require('fs');
 const path = require('path');
 const { fork } = require('child_process');
 const { simulateTrade } = require('./simulate-manual-trade');
@@ -10,15 +10,29 @@ const { executeTrade } = require('./execute-manual-trade');
 const app = express();
 const port = process.env.PORT || 3001;
 const TRADE_HISTORY_FILE = path.join(__dirname, 'trade_history.json');
+const BOT_LOG_FILE = path.join(__dirname, 'bot.log');
+
+// Create a writable stream for the bot's logs
+const logStream = fs.createWriteStream(BOT_LOG_FILE, { flags: 'a' });
 
 app.use(cors());
 app.use(express.json());
 
 if (process.env.NODE_ENV === 'production') {
     console.log('Starting arbitrage bot in production mode...');
-    const botProcess = fork(path.join(__dirname, 'bot.js'));
+    const botProcess = fork(path.join(__dirname, 'bot.js'), [], {
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc']
+    });
+
+    // Redirect bot's stdout and stderr to the log file and the console
+    botProcess.stdout.pipe(process.stdout);
+    botProcess.stderr.pipe(process.stderr);
+    botProcess.stdout.pipe(logStream);
+    botProcess.stderr.pipe(logStream);
+
     botProcess.on('exit', (code) => {
         console.error(`Arbitrage bot exited with code ${code}. Restarting...`);
+        // You might want to add a delay or a maximum restart count here
         fork(path.join(__dirname, 'bot.js'));
     });
 } else {
@@ -29,9 +43,23 @@ app.get('/api/status', (req, res) => {
     res.json({ status: 'ok', message: 'Backend is running' });
 });
 
+app.get('/api/logs', async (req, res) => {
+    try {
+        const data = await fs.promises.readFile(BOT_LOG_FILE, 'utf8');
+        const lines = data.trim().split('\n');
+        res.json(lines.slice(-100)); // Return last 100 lines
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return res.json(['Log file not created yet.']);
+        }
+        console.error('Error reading log file:', error);
+        res.status(500).json({ message: 'Failed to read log file.' });
+    }
+});
+
 app.get('/api/trade-history', async (req, res) => {
     try {
-        const data = await fs.readFile(TRADE_HISTORY_FILE, 'utf8');
+        const data = await fs.promises.readFile(TRADE_HISTORY_FILE, 'utf8');
         res.json(JSON.parse(data));
     } catch (error) {
         if (error.code === 'ENOENT') {

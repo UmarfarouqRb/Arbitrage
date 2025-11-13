@@ -44,28 +44,34 @@ async function run() {
                 if (opportunities.length > 0) {
                     console.log(`Found ${opportunities.length} potential opportunities. Analyzing profitability...`);
                     for (const opportunity of opportunities) {
+                        console.log(`Analyzing opportunity: ${opportunity.tokenA} -> ${opportunity.tokenB} on ${opportunity.dex1} -> ${opportunity.dex2}`);
                         const netProfit = await calculateDynamicProfit(opportunity, provider);
                         if (netProfit > ethers.utils.parseUnits(BOT_CONFIG.MIN_PROFIT_THRESHOLD, 18)) {
                             console.log(`Profitable opportunity found! Net profit: ${ethers.utils.formatEther(netProfit)} ETH`);
                             await executeTrade(opportunity, flashbotsProvider, blockNumber);
                         }
                     }
+                } else {
+                    console.log("No opportunities found in this block.");
                 }
             } catch (scanError) {
-                console.error(`[ERROR] An error occurred during the block scan at block ${blockNumber}:`, scanError.message);
+                console.error(`[ERROR] An error occurred during the block scan at block ${blockNumber}:`, scanError.message, scanError.stack);
             }
         });
 
         async function findArbitrageOpportunities() {
+            console.log("Finding arbitrage opportunities...");
             let opportunities = [];
             const hardcodedOpportunities = await analyzeTokenPairs(getTokenPairs());
             opportunities = opportunities.concat(hardcodedOpportunities);
             const discoveredOpportunities = await discoverAndAnalyzeNewPairs();
             opportunities = opportunities.concat(discoveredOpportunities);
+            console.log(`Total opportunities found: ${opportunities.length}`);
             return opportunities;
         }
 
         async function analyzeTokenPairs(tokenPairs) {
+            console.log(`Analyzing ${tokenPairs.length} token pairs...`);
             const opportunities = [];
             for (const pair of tokenPairs) {
                 for (const dex1 of Object.keys(DEX_ROUTERS.base)) {
@@ -73,6 +79,7 @@ async function run() {
                         if (dex1 === dex2) continue;
                         const opportunity = await analyzePair(pair, dex1, dex2);
                         if (opportunity) {
+                            console.log(`Found potential arbitrage: ${pair[0]}/${pair[1]} between ${dex1} and ${dex2}`);
                             opportunities.push(opportunity);
                         }
                     }
@@ -82,17 +89,25 @@ async function run() {
         }
 
         async function discoverAndAnalyzeNewPairs() {
+            console.log("Discovering and analyzing new pairs...");
             let discoveredOpportunities = [];
             for (const dex of Object.keys(DEX_FACTORIES.base)) {
                 try {
+                    console.log(`Discovering pairs from ${dex}...`);
                     let pairs = pairCache.get(dex);
                     if (!pairs || Date.now() > pairs.timestamp + CACHE_TTL) {
+                        console.log(`Fetching new pairs for ${dex}...`);
                         const fetchedPairs = await fetchAllPairsInBatches(dex);
                         pairs = { list: fetchedPairs, timestamp: Date.now() };
                         pairCache.set(dex, pairs);
+                        console.log(`Fetched ${fetchedPairs.length} pairs for ${dex}.`);
                     }
-                    if (!pairs.list || pairs.list.length === 0) continue;
+                    if (!pairs.list || pairs.list.length === 0) {
+                        console.log(`No pairs to analyze for ${dex}.`);
+                        continue;
+                    }
                     const pairsToScan = pairs.list.slice(0, 100);
+                    console.log(`Getting reserves for ${pairsToScan.length} pairs from ${dex}...`);
                     const reserves = await getReservesWithMulticall(pairsToScan);
                     for (let i = 0; i < pairsToScan.length; i++) {
                         if (!reserves[i]) continue;
@@ -104,9 +119,10 @@ async function run() {
                         }
                     }
                 } catch (error) {
-                    console.error(`Error discovering pairs from ${dex}:`, error.message);
+                    console.error(`Error discovering pairs from ${dex}:`, error.message, error.stack);
                 }
             }
+            console.log(`Discovered ${discoveredOpportunities.length} new opportunities.`);
             return discoveredOpportunities;
         }
 
@@ -127,10 +143,12 @@ async function run() {
             }
 
             const allPairsLength = await factory.allPairsLength();
+            console.log(`Total pairs in ${dex} factory: ${allPairsLength}`);
             const BATCH_SIZE = 100;
             let allPairs = [];
             for (let i = 0; i < allPairsLength; i += BATCH_SIZE) {
                 const batchEnd = i + BATCH_SIZE < allPairsLength ? i + BATCH_SIZE : Number(allPairsLength);
+                console.log(`Fetching pairs from index ${i} to ${batchEnd-1}...`);
                 const pairAddressCalls = [];
                 for (let j = i; j < batchEnd; j++) {
                     pairAddressCalls.push({ target: await factory.getAddress(), callData: factory.interface.encodeFunctionData('allPairs', [j]) });
@@ -157,7 +175,7 @@ async function run() {
                         }
                     }
                 } catch (batchError) {
-                    console.error(`[ERROR] Failed to process a batch for ${dex}. Skipping batch.`, batchError.message);
+                    console.error(`[ERROR] Failed to process a batch for ${dex}. Skipping batch.`, batchError.message, batchError.stack);
                 }
             }
             return allPairs;
@@ -171,6 +189,7 @@ async function run() {
                 try {
                     return ethers.utils.defaultAbiCoder.decode(['uint112', 'uint112', 'uint32'], result);
                 } catch (e) {
+                    console.warn(`Could not decode reserves for pair ${pairs[i].address}: ${e.message}`);
                     return null;
                 }
             });
@@ -189,12 +208,14 @@ async function run() {
                 if (amountOut2 > amountIn) {
                     return { tokenA, tokenB, dex1, dex2, amountIn, amountOut: amountOut2 };
                 }
-            } catch (error) {}
+            } catch (error) {
+                // Mute errors here as they are expected for pairs that don't exist on a DEX
+            }
             return null;
         }
 
         async function executeTrade(opportunity, flashbotsProvider, blockNumber) {
-            console.log(`Executing trade for ${opportunity.tokenA}/${opportunity.tokenB} on ${opportunity.dex1}/${opportunity.dex2}`)
+            console.log(`Executing trade for ${opportunity.tokenA}/${opportunity.tokenB} on ${opportunity.dex1}/${opportunity.dex2}`);
             const arbitrageContract = new ethers.Contract(BOT_CONFIG.ARBITRAGE_CONTRACT_ADDRESS, ['function executeArbitrage(address tokenIn, address tokenOut, uint amountIn, address dexRouter1, address dexRouter2) external'], wallet);
             const gasPrice = await getDynamicGasPrice(provider);
             const tx = await arbitrageContract.populateTransaction.executeArbitrage(
@@ -207,7 +228,9 @@ async function run() {
             );
             const bundle = [{ transaction: tx, signer: wallet }];
             try {
+                console.log("Signing Flashbots bundle...");
                 const signedBundle = await flashbotsProvider.signBundle(bundle);
+                console.log("Simulating bundle...");
                 const simulation = await flashbotsProvider.simulate(signedBundle, blockNumber + 1);
                 if (simulation.results[0].error) {
                     console.error(`[EXECUTION FAILED] Simulation error: ${simulation.results[0].error}`);
@@ -217,7 +240,7 @@ async function run() {
                     console.log(`Bundle sent! Transaction hash: ${receipt.bundleHash}`);
                 }
             } catch (e) {
-                console.error('[CRITICAL] Flashbots submission error:', e.message);
+                console.error('[CRITICAL] Flashbots submission error:', e.message, e.stack);
             }
         }
 
@@ -233,7 +256,7 @@ async function run() {
         }
 
     } catch (error) {
-        console.error("A fatal error occurred during bot initialization:", error);
+        console.error("A fatal error occurred during bot initialization:", error.message, error.stack);
         process.exit(1);
     }
 }

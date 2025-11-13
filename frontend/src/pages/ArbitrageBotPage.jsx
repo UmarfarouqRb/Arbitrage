@@ -1,5 +1,6 @@
 
 import ArbitrageBotController from '../components/ArbitrageBotController';
+import BotLogs from '../components/BotLogs';
 
 const ArbitrageBotPage = () => {
   return (
@@ -11,6 +12,7 @@ const ArbitrageBotPage = () => {
         </p>
       </div>
       <ArbitrageBotController />
+      <BotLogs />
     </div>
   );
 };
